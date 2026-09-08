@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <!-- スマホ・タブレット向けビューポート設定（拡大縮小の防止など） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>オクちゃんのハラハラ修繕ゲーム2</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent; /* タップ時の青いハイライトを消す */
+    }
+
+    body {
+      margin: 0;
+      padding: 10px;
+      background-color: #f4ecd8;
+      font-family: "Hiragino Kaku Gothic ProN", "メイリオ", sans-serif;
+      text-align: center;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation; /* スマホでの操作感を向上 */
+      /* 絆創膏（バンエード）風のカスタムカーソル */
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect x="4" y="10" width="24" height="12" rx="6" fill="%23e8be96" stroke="%23c49a72" stroke-width="2"/><rect x="12" y="10" width="8" height="12" fill="%23ffffff" opacity="0.6"/><circle cx="8" cy="16" r="1" fill="%23a07050"/><circle cx="24" cy="16" r="1" fill="%23a07050"/></svg>') 16 16, auto;
+    }
+
+    h1 {
+      font-size: clamp(18px, 4vw, 28px);
+      margin: 5px 0;
+    }
+
+    p {
+      font-size: clamp(12px, 2.5vw, 15px);
+      margin: 5px 0;
+    }
+
+    #ui {
+      font-size: clamp(16px, 3.5vw, 24px);
+      font-weight: bold;
+      color: #5a3d28;
+      margin: 5px 0;
+    }
+
+    /* ゲーム画面全体（iPhone/iPadに合わせた可変レスポンシブ） */
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16 / 10; /* アスペクト比を維持 */
+      margin: 10px auto;
+      background: #aadaff; /* 空 */
+      border: 6px solid #5a3d28;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+
+    /* --- 磯野家風の家イラスト --- */
+    .isono-house {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .roof {
+      position: absolute;
+      top: 12%;
+      left: 2.5%;
+      width: 95%;
+      height: 18%;
+      background: #4a5568;
+      clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+      border-bottom: 6px solid #2d3748;
+    }
+    .roof-ridge {
+      position: absolute;
+      top: 10.4%;
+      left: 10%;
+      width: 80%;
+      height: 2.4%;
+      background: #2d3748;
+      border-radius: 6px 6px 0 0;
+    }
+    .wall {
+      position: absolute;
+      bottom: 6%;
+      left: 6.25%;
+      width: 87.5%;
+      height: 64%;
+      background: #f7fafc;
+      border-left: 6px solid #718096;
+      border-right: 6px solid #718096;
+    }
+    .wooden-wall {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 56%;
+      background: #b8860b;
+      background-image: repeating-linear-gradient(90deg, transparent, transparent 40px, #8b5a2b 40px, #8b5a2b 44px);
+      border-top: 8px solid #5c3a21;
+      pointer-events: none;
+    }
+    .engawa {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 6%;
+      background: #8b4513;
+      border-top: 4px solid #5c2c0c;
+      pointer-events: auto;
+    }
+
+    /* 地面の茶色部分（縁側）の右端に配置したInstagramリンク（白文字） */
+    .house-link {
+      position: absolute;
+      bottom: 10%;
+      right: 2%;
+      font-size: clamp(9px, 1.8vw, 12px);
+      font-weight: bold;
+      color: #ffffff; /* 白色の文字 */
+      text-decoration: underline;
+      z-index: 10;
+      pointer-events: auto;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      max-width: 40%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 2px 4px;
+    }
+    .house-link:hover, .house-link:active {
+      color: #ffdda1;
+    }
+
+    .pillar {
+      position: absolute;
+      top: 30%;
+      width: 2%;
+      height: 64%;
+      background: #5c3a21;
+      border-left: 2px solid #3d2616;
+      border-right: 2px solid #3d2616;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* --- キャラ共通設定 --- */
+    .common-face { 
+      width: 34px; 
+      height: 34px; 
+      background: #ffe0bd;
+      border-radius: 50%; 
+      margin: 0 auto; 
+      position: relative; 
+      border: 1px solid #d4a373;
+      z-index: 5;
+    }
+    .eye {
+      width: 4px;
+      height: 4px;
+      background: #333;
+      border-radius: 50%;
+      position: absolute;
+      top: 18px;
+      z-index: 6;
+    }
+    .eye.left { left: 9px; }
+    .eye.right { right: 9px; }
+    .mouth {
+      width: 8px;
+      height: 4px;
+      border-bottom: 2px solid #333;
+      border-radius: 0 0 4px 4px;
+      position: absolute;
+      bottom: 4px;
+      left: 13px;
+      z-index: 6;
+    }
+
+    /* 大工キャラ全体 */
+    #carpenter {
+      position: absolute;
+      bottom: 6%;
+      left: 6.25%;
+      width: 70px;
+      height: 100px;
+      transition: left 0.8s ease-in-out;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .okappa-hair {
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      width: 40px;
+      height: 20px;
+      background: #1a1a1a;
+      border-radius: 20px 20px 0 0;
+      z-index: 1;
+    }
+
+    .sweat {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      font-size: 20px;
+      display: none;
+      z-index: 10;
+      animation: sweatAnim 0.5s ease-in-out infinite alternate;
+    }
+    @keyframes sweatAnim {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-4px); }
+    }
+
+    /* 吹き出し（共通） */
+    .bubble {
+      position: absolute;
+      top: -45px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      color: #333;
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: bold;
+      white-space: nowrap;
+      display: none;
+      z-index: 30;
+    }
+    .bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 8px 6px 0;
+      border-style: solid;
+      border-color: #ffffff transparent;
+      display: block;
+      width: 0;
+    }
+
+    /* 大工の体と手足 */
+    .body { 
+      width: 40px; 
+      height: 42px; 
+      background: #2b5b84; 
+      margin: 0 auto; 
+      border-radius: 5px; 
+      position: relative;
+    }
+    .arm-left {
+      position: absolute;
+      left: -8px;
+      top: 5px;
+      width: 10px;
+      height: 25px;
+      background: #ffe0bd;
+      border-radius: 5px;
+    }
+    .arm-right {
+      position: absolute;
+      right: -10px;
+      top: 5px;
+      width: 10px;
+      height: 28px;
+      background: #ffe0bd;
+      border-radius: 5px;
+      transform-origin: top center;
+      transition: transform 0.15s ease-in-out;
+    }
+    .hammer { 
+      position: absolute; 
+      bottom: -10px; 
+      right: -10px; 
+      font-size: 24px;
+    }
+    .arm-right.swing {
+      transform: rotate(-110deg);
+    }
+    .leg {
+      position: absolute;
+      bottom: -18px;
+      width: 12px;
+      height: 20px;
+      background: #1d3557;
+      border-radius: 3px;
+    }
+    .leg.left { left: 5px; }
+    .leg.right { right: 5px; }
+
+    /* --- 女性キャラ共通設定 --- */
+    .woman-char {
+      position: absolute;
+      bottom: 6%;
+      width: 70px;
+      height: 100px;
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    .woman-head-wrapper {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      margin: 0 auto;
+    }
+
+    .woman-back-hair {
+      position: absolute;
+      top: -2px;
+      left: -5px;
+      width: 44px;
+      height: 60px;
+      background: #1a1a1a;
+      border-radius: 20px 20px 8px 8px;
+      z-index: 1;
+    }
+
+    .woman-top-hair {
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      width: 38px;
+      height: 12px;
+      background: #1a1a1a;
+      border-radius: 12px 12px 0 0;
+      z-index: 7;
+    }
+
+    .woman-body {
+      width: 38px;
+      height: 42px;
+      margin: 0 auto;
+      border-radius: 5px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* 右から来る女性 */
+    #woman-right {
+      right: -100px;
+      transition: right 1.2s linear;
+    }
+    #woman-right .woman-body { background: #e63946; }
+    #woman-right .woman-arm-left {
+      position: absolute;
+      left: -10px;
+      top: 5px;
+      width: 10px;
+      height: 28px;
+      background: #ffe0bd;
+      border-radius: 5px;
+      transform-origin: top center;
+      transition: transform 0.15s ease-in-out;
+    }
+    #woman-right .woman-arm-left.swing { transform: rotate(100deg); }
+    #woman-right .woman-hammer { position: absolute; bottom: -10px; left: -10px; font-size: 24px; }
+
+    /* 左から来る女性 */
+    .woman-left-type {
+      left: -100px;
+      transition: left 1.2s linear;
+    }
+    .woman-left-type .woman-arm-right {
+      position: absolute;
+      right: -10px;
+      top: 5px;
+      width: 10px;
+      height: 28px;
+      background: #ffe0bd;
+      border-radius: 5px;
+      transform-origin: top center;
+      transition: transform 0.15s ease-in-out;
+    }
+    .woman-left-type .woman-arm-right.swing { transform: rotate(-100deg); }
+    .woman-left-type .woman-hammer { position: absolute; bottom: -10px; right: -10px; font-size: 24px; }
+
+    #woman-left1 .woman-body { background: #ff70a6; }
+    #woman-left2 .woman-body { background: #70d6ff; }
+
+    /* 傷（ダメージ）アイコン（スマホで押しやすいよう判定範囲を拡大） */
+    .damage {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      font-size: 32px;
+      line-height: 50px;
+      text-align: center;
+      transform: translate(-50%, -50%);
+      z-index: 40;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    /* --- スタート画面 / クリア画面 --- */
+    .overlay-screen {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.65);
+      color: white;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 15px;
+    }
+    .overlay-screen h2 {
+      font-size: clamp(20px, 4vw, 32px);
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px #000;
+      z-index: 102;
+    }
+    .start-btn, .retry-btn {
+      padding: 12px 28px;
+      font-size: clamp(18px, 3.5vw, 24px);
+      font-weight: bold;
+      cursor: pointer;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 6px 0 #b36b00, 0 10px 10px rgba(0,0,0,0.3);
+      transition: transform 0.1s, background 0.2s;
+      z-index: 102;
+      touch-action: manipulation;
+    }
+    .start-btn:active, .retry-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #b36b00;
+    }
+
+    #clear-screen {
+      display: none;
+      pointer-events: none;
+    }
+    #clear-screen h2, #clear-screen .retry-btn {
+      pointer-events: auto;
+    }
+
+    /* 紙吹雪 */
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 14px;
+      top: -20px;
+      opacity: 0.9;
+      z-index: 101;
+      animation: fall 3s linear infinite;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(520px) rotate(720deg); opacity: 0.2; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🔨 オクちゃんのハラハラ修繕ゲーム2 🩹</h1>
+  <p>大工が<b>3カ所に傷をつけます</b>！<br>傷（💥）を<b>3回タップ</b>して直し、全3カ所修繕してクリアしよう！</p>
+  <div id="ui">修繕した数: <span id="repaired-count">0</span> / 3</div>
+
+  <div id="game-container">
+    <!-- 磯野家風の家イラスト背景 -->
+    <div class="isono-house">
+      <div class="roof-ridge"></div>
+      <div class="roof"></div>
+      <div class="wall">
+        <div class="wooden-wall"></div>
+      </div>
+      <div class="engawa">
+        <a href="https://www.instagram.com/lyn.jp.design/" target="_blank" rel="noopener noreferrer" class="house-link">https://www.instagram.com/lyn.jp.design/</a>
+      </div>
+      <div class="pillar" style="left: 22.5%;"></div>
+      <div class="pillar" style="left: 75%;"></div>
+    </div>
+
+    <!-- スタート画面 -->
+    <div id="start-screen" class="overlay-screen">
+      <h2>🔨 オクちゃんのハラハラ修繕ゲーム2 🩹</h2>
+      <button class="start-btn" onclick="startGame()">ゲームスタート！</button>
+    </div>
+
+    <!-- 大工キャラ -->
+    <div id="carpenter">
+      <div class="bubble" id="bubble">僕たち</div>
+      <div class="common-face">
+        <div class="okappa-hair"></div>
+        <div class="eye left"></div>
+        <div class="eye right"></div>
+        <div class="mouth"></div>
+        <div class="sweat" id="sweat">💦</div>
+      </div>
+      <div class="body">
+        <div class="arm-left"></div>
+        <div class="arm-right" id="right-arm">
+          <div class="hammer">🔨</div>
+        </div>
+        <div class="leg left"></div>
+        <div class="leg right"></div>
+      </div>
+    </div>
+
+    <!-- 右から来る女性キャラ -->
+    <div id="woman-right" class="woman-char">
+      <div class="bubble" id="woman-right-bubble">バーカ</div>
+      <div class="woman-head-wrapper">
+        <div class="woman-back-hair"></div>
+        <div class="common-face">
+          <div class="eye left"></div>
+          <div class="eye right"></div>
+          <div class="mouth"></div>
+          <div class="woman-top-hair"></div>
+        </div>
+      </div>
+      <div class="woman-body">
+        <div class="woman-arm-left" id="woman-right-arm">
+          <div class="woman-hammer">🔨</div>
+        </div>
+        <div class="leg left" style="background:#ffe0bd;"></div>
+        <div class="leg right" style="background:#ffe0bd;"></div>
+      </div>
+    </div>
+
+    <!-- 左から来る女性1 -->
+    <div id="woman-left1" class="woman-char woman-left-type">
+      <div class="bubble" id="woman-left1-bubble">どの口がゆってるの？</div>
+      <div class="woman-head-wrapper">
+        <div class="woman-back-hair"></div>
+        <div class="common-face">
+          <div class="eye left"></div>
+          <div class="eye right"></div>
+          <div class="mouth"></div>
+          <div class="woman-top-hair"></div>
+        </div>
+      </div>
+      <div class="woman-body">
+        <div class="woman-arm-right" id="woman-left1-arm">
+          <div class="woman-hammer">🔨</div>
+        </div>
+        <div class="leg left" style="background:#ffe0bd;"></div>
+        <div class="leg right" style="background:#ffe0bd;"></div>
+      </div>
+    </div>
+
+    <!-- 左から来る女性2 -->
+    <div id="woman-left2" class="woman-char woman-left-type">
+      <div class="bubble" id="woman-left2-bubble">だっさ</div>
+      <div class="woman-head-wrapper">
+        <div class="woman-back-hair"></div>
+        <div class="common-face">
+          <div class="eye left"></div>
+          <div class="eye right"></div>
+          <div class="mouth"></div>
+          <div class="woman-top-hair"></div>
+        </div>
+      </div>
+      <div class="woman-body">
+        <div class="woman-arm-right" id="woman-left2-arm">
+          <div class="woman-hammer">🔨</div>
+        </div>
+        <div class="leg left" style="background:#ffe0bd;"></div>
+        <div class="leg right" style="background:#ffe0bd;"></div>
+      </div>
+    </div>
+
+    <!-- クリア画面 -->
+    <div id="clear-screen" class="overlay-screen">
+      <h2>🎉 クリアー！完璧に（自作自演で）直しました！ 🎉</h2>
+      <button class="retry-btn" onclick="resetGame()">もう一度あそぶ</button>
+      <div id="confetti-container"></div>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('game-container');
+    const repairedEl = document.getElementById('repaired-count');
+    const carpenter = document.getElementById('carpenter');
+    const rightArm = document.getElementById('right-arm');
+    const sweat = document.getElementById('sweat');
+    const bubble = document.getElementById('bubble');
+    
+    const womanRight = document.getElementById('woman-right');
+    const womanRightArm = document.getElementById('woman-right-arm');
+    const womanRightBubble = document.getElementById('woman-right-bubble');
+
+    const womanLeft1 = document.getElementById('woman-left1');
+    const womanLeft1Arm = document.getElementById('woman-left1-arm');
+    const womanLeft1Bubble = document.getElementById('woman-left1-bubble');
+
+    const womanLeft2 = document.getElementById('woman-left2');
+    const womanLeft2Arm = document.getElementById('woman-left2-arm');
+    const womanLeft2Bubble = document.getElementById('woman-left2-bubble');
+
+    const startScreen = document.getElementById('start-screen');
+    const clearScreen = document.getElementById('clear-screen');
+    const confettiContainer = document.getElementById('confetti-container');
+
+    let repairedCount = 0;
+    let createdCount = 0;
+    let sweatTimeout = null;
+    let bubbleTimeout = null;
+    let carpenterTimer = null;
+
+    const carpenterLines = ['僕たち', 'かっこいい', 'ものつくってるよ'];
+
+    function startGame() {
+      startScreen.style.display = 'none';
+      startCarpenterAI();
+    }
+
+    function startCarpenterAI() {
+      if (carpenterTimer) clearInterval(carpenterTimer);
+      
+      carpenterTimer = setInterval(() => {
+        if (createdCount >= 3) {
+          clearInterval(carpenterTimer);
+          moveCarpenterToCenter();
+          return;
+        }
+
+        const containerWidth = container.clientWidth;
+        const randomX = Math.floor(Math.random() * (containerWidth - 100)) + 20;
+        carpenter.style.left = `${randomX}px`;
+
+        setTimeout(() => {
+          if (createdCount >= 3) return;
+
+          rightArm.classList.add('swing');
+          setTimeout(() => {
+            rightArm.classList.remove('swing');
+
+            const containerHeight = container.clientHeight;
+            const damageY = Math.floor(Math.random() * (containerHeight * 0.4)) + (containerHeight * 0.3);
+            createDamage(randomX + 40, damageY);
+
+            showBubble(carpenterLines[createdCount]);
+            createdCount++;
+
+            if (createdCount >= 3) {
+              clearInterval(carpenterTimer);
+              setTimeout(() => {
+                moveCarpenterToCenter();
+              }, 600);
+            }
+          }, 200);
+        }, 800);
+
+      }, 2500);
+    }
+
+    function moveCarpenterToCenter() {
+      const containerWidth = container.clientWidth;
+      carpenter.style.left = `${(containerWidth / 2) - 35}px`;
+    }
+
+    function createDamage(x, y) {
+      const damage = document.createElement('div');
+      damage.className = 'damage';
+      damage.style.left = `${x}px`;
+      damage.style.top = `${y}px`;
+      damage.innerText = '💥';
+      
+      let clicks = 0;
+
+      // タップ（クリック）イベントの処理
+      const handleTap = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        clicks++;
+
+        showSweat();
+
+        if (clicks === 1) {
+          damage.innerText = '🩹';
+          damage.style.opacity = '0.8';
+        } else if (clicks === 2) {
+          damage.style.opacity = '0.4';
+        } else if (clicks >= 3) {
+          damage.remove();
+          repairedCount++;
+          repairedEl.innerText = repairedCount;
+
+          if (repairedCount >= 3) {
+            clearInterval(carpenterTimer);
+            setTimeout(() => {
+              startPunishSequence();
+            }, 300);
+          }
+        }
+      };
+
+      damage.addEventListener('pointerdown', handleTap);
+      container.appendChild(damage);
+    }
+
+    /* --- 連鎖おしおき演出 --- */
+    function startPunishSequence() {
+      const carpenterX = carpenter.offsetLeft;
+      const containerWidth = container.clientWidth;
+
+      // 1. 右からの女性
+      const targetRight = containerWidth - (carpenterX + 110); 
+      womanRight.style.right = `${targetRight}px`;
+
+      setTimeout(() => {
+        womanRightArm.classList.add('swing');
+        
+        setTimeout(() => {
+          womanRightArm.classList.remove('swing');
+          showSweat();
+          showCharBubble(womanRightBubble, 'バーカ');
+
+          setTimeout(() => {
+            womanRight.style.right = '-120px';
+
+            setTimeout(() => {
+              startWomanLeft1Sequence(carpenterX);
+            }, 600);
+
+          }, 800);
+        }, 200);
+      }, 1300);
+    }
+
+    // 2. 左からの女性1
+    function startWomanLeft1Sequence(carpenterX) {
+      const targetLeft = carpenterX - 40;
+      womanLeft1.style.left = `${targetLeft}px`;
+
+      setTimeout(() => {
+        womanLeft1Arm.classList.add('swing');
+
+        setTimeout(() => {
+          womanLeft1Arm.classList.remove('swing');
+          showSweat();
+          showCharBubble(womanLeft1Bubble, 'どの口がゆってるの？');
+
+          setTimeout(() => {
+            womanLeft1.style.left = '-120px';
+
+            setTimeout(() => {
+              startWomanLeft2Sequence(carpenterX);
+            }, 600);
+
+          }, 800);
+        }, 200);
+      }, 1300);
+    }
+
+    // 3. 左からの女性2
+    function startWomanLeft2Sequence(carpenterX) {
+      const targetLeft = carpenterX - 40;
+      womanLeft2.style.left = `${targetLeft}px`;
+
+      setTimeout(() => {
+        womanLeft2Arm.classList.add('swing');
+
+        setTimeout(() => {
+          womanLeft2Arm.classList.remove('swing');
+          showSweat();
+          showCharBubble(womanLeft2Bubble, 'だっさ');
+
+          setTimeout(() => {
+            womanLeft2.style.left = '-120px';
+
+            setTimeout(() => {
+              showSweat();
+              showBubble('チョス チョス');
+
+              setTimeout(() => {
+                showClearScreen();
+              }, 1800);
+
+            }, 1200);
+
+          }, 800);
+        }, 200);
+      }, 1300);
+    }
+
+    function showBubble(text) {
+      bubble.innerText = text;
+      bubble.style.display = 'block';
+      if (bubbleTimeout) clearTimeout(bubbleTimeout);
+      bubbleTimeout = setTimeout(() => {
+        bubble.style.display = 'none';
+      }, 1800);
+    }
+
+    function showCharBubble(element, text) {
+      element.innerText = text;
+      element.style.display = 'block';
+      setTimeout(() => {
+        element.style.display = 'none';
+      }, 1500);
+    }
+
+    function showSweat() {
+      sweat.style.display = 'block';
+      if (sweatTimeout) clearTimeout(sweatTimeout);
+      sweatTimeout = setTimeout(() => {
+        sweat.style.display = 'none';
+      }, 2000);
+    }
+
+    function showClearScreen() {
+      clearScreen.style.display = 'flex';
+      createConfetti();
+    }
+
+    function createConfetti() {
+      confettiContainer.innerHTML = '';
+      const colors = ['#f44336', '#e91e63', '#9c27b0', '#2196f3', '#4caf50', '#ffeb3b', '#ff9800'];
+      
+      for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = `${Math.random() * 100}%`;
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = `${Math.random() * 2}s`;
+        confetti.style.animationDuration = `${2 + Math.random() * 2}s`;
+        confettiContainer.appendChild(confetti);
+      }
+    }
+
+    function resetGame() {
+      repairedCount = 0;
+      createdCount = 0;
+      repairedEl.innerText = 0;
+      clearScreen.style.display = 'none';
+      bubble.style.display = 'none';
+      
+      womanRightBubble.style.display = 'none';
+      womanLeft1Bubble.style.display = 'none';
+      womanLeft2Bubble.style.display = 'none';
+
+      womanRight.style.right = '-100px';
+      womanLeft1.style.left = '-100px';
+      womanLeft2.style.left = '-100px';
+
+      confettiContainer.innerHTML = '';
+      document.querySelectorAll('.damage').forEach(el => el.remove());
+      carpenter.style.left = '6.25%';
+      startCarpenterAI();
+    }
+  </script>
+</body>
+</html>
